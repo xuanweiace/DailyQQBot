@@ -11,7 +11,7 @@ from graia.ariadne.message.element import Plain, Source, At, Image
 from graia.ariadne.model import Friend, Group, Member, MiraiSession
 from graia.ariadne.event.mirai import NudgeEvent
 
-from configs import zxz, yxy
+from .configs import zxz, yxy
 zxzzQun = 456850568 # 专心致志群
 WuYongQun = 736964479 # zxz无用传输群 群号
 zxzyxyQun = 762751056
@@ -90,7 +90,7 @@ def bv_error(bv:str, data:dict):
         像我们这个bv_error检测，其实就算是对爬取的数据进行后处理了。
     """
     for item in data:
-        if bv == data['bv']:
+        if bv == item['bv']:
             return False
     # 说明待检测的bv不在爬取的数据中，会导致后面推送的时候不break，所有爬取的数据都推送过去了
     return True
