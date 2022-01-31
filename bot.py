@@ -15,7 +15,9 @@ import debug
 from features import soutu, tianqi, bilibili
 punc = '~`!#$%^&*()_+-=|\';":/.,?><~·！@#￥%……&*（）--+-="：’；、。，？》《{}'
 loop = asyncio.new_event_loop()
-logger.remove()
+
+
+#logger.remove()
 logger.add("logs/file_{time}.log",level="INFO")
 bcc = Broadcast(loop=loop)
 app = Ariadne(
@@ -93,6 +95,8 @@ async def group_message_listener(app: Ariadne, group: Group, message: MessageCha
     await tianqi.listen(app, group, message, member, source)
     print(member.id)
     if member.id == 2272145754:
+        if message.get(At) != []:
+            return
         await app.sendGroupMessage(WuYongQun, MessageChain.create(
             f"来自QQ:{member.id}的每日新闻！"
         ) + message)
@@ -102,7 +106,7 @@ async def group_message_listener(app: Ariadne, group: Group, message: MessageCha
     # await app.sendGroupMessage(WuYongQun, MessageChain.create(
     #     f"不要说{message.asDisplay()}，来听听歌吧！"
     # ))
-    print("执行结束")
+    #print("执行结束")
 
 '''
 @bcc.receiver(NudgeEvent)

@@ -39,6 +39,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
     last_bv = ''
     async with aiohttp.ClientSession() as session:
         while keep_working:
+            logger.info(f"这里是 {user['name']} 的b站推送功能----")
             data = await fetch(session, user['headers'], user['url'])
             data_obj = json.loads(data)
             try:
@@ -50,18 +51,23 @@ async def register_user(app: Ariadne, user:dict, start:int):
                 
             data = format_data(data_obj)
             
-            logger.info(f"{user["name"]}"的新信息如下)
+            logger.info(f"{user['name']}的新信息如下")
             #print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, {user["name"]}的新信息如下：')
-            new_bv = data[0]['short_link']
-            new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
+
+            #new_bv的更新方式改变成直接取bv号
+            # new_bv = data[0]['short_link']
+            # new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
+            new_bv = data[0]['bv']
             await exception_handle1(app, data)
-            logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link']")
+            logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link'])
             #print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
             #print("last_bv: ", last_bv)
 
             #理论上init bv 这一部分应该放到while循环外面，因为这部分只在第一次的时候用的到。
-            init_bv = data[start]['short_link']
-            init_bv = init_bv[init_bv.find('/BV'):].replace('/','')
+
+            # init_bv = data[start]['short_link']
+            # init_bv = init_bv[init_bv.find('/BV'):].replace('/','')
+            init_bv = data[start]['bv']
             if last_bv == '':
                 last_bv = init_bv
             # 增加对异常情况的过滤
@@ -90,6 +96,7 @@ async def exception_handle1(app: Ariadne, data:dict):
         bv = item['short_link']
         bv = bv[bv.find('/BV'):].replace('/','')
         if bv != item['bv']:
+
             await app.sendFriendMessage(botQQ, MessageChain.create("B站推送bv号和shortlink有误，具体信息如下：") + MessageChain.create(str(item)))
 
 def bv_error(bv:str, data:dict):
