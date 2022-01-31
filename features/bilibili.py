@@ -1,7 +1,11 @@
+import errno
+from logging import error
 import aiohttp
 import asyncio
 import json
 import time
+from loguru import logger
+
 from graia.broadcast import Broadcast
 
 from graia.ariadne.context import adapter_ctx
@@ -27,7 +31,11 @@ async def main(app: Ariadne, name:str, start:int):
         await register_user(app, yxy, start)
 
 keep_working = True
+
+@logger.catch
 async def register_user(app: Ariadne, user:dict, start:int):
+    #print("asyncio.current_task:", asyncio.current_task)
+    global keep_working
     last_bv = ''
     async with aiohttp.ClientSession() as session:
         while keep_working:
@@ -37,16 +45,19 @@ async def register_user(app: Ariadne, user:dict, start:int):
                 assert len(data_obj["data"]["cards"]) == 20
             except Exception:
                 #TODO:下一步这里加上app.sendMessgae到MAH
-                print("长度不对，出错了,len=",len(data_obj["data"]["cards"]))   
+                logger.info("长度不对，出错了,len={}",len(data_obj["data"]["cards"]))
+                #print("长度不对，出错了,len=",len(data_obj["data"]["cards"]))   
                 
             data = format_data(data_obj)
-
-            print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, {user["name"]}的新信息如下：')
+            
+            logger.info(f"{user["name"]}"的新信息如下)
+            #print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, {user["name"]}的新信息如下：')
             new_bv = data[0]['short_link']
             new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
             await exception_handle1(app, data)
-            print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
-            print("last_bv: ", last_bv)
+            logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link']")
+            #print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
+            #print("last_bv: ", last_bv)
 
             #理论上init bv 这一部分应该放到while循环外面，因为这部分只在第一次的时候用的到。
             init_bv = data[start]['short_link']
@@ -60,14 +71,17 @@ async def register_user(app: Ariadne, user:dict, start:int):
                 if last_bv in item['short_link']:
                     last_bv = new_bv
                     break
-                print(item['title'], item['short_link'])
+                logger.info("得到新推送:{}, link:{}",item['title'], item['short_link'])
+                #print(item['title'], item['short_link'])
                 
                 await app.sendGroupMessage(user["sendgroup"], make_Chain(item))                
-            print('-'*100)
-            print('over')
-            print("new_bv: ", new_bv)
-            print("last_bv: ", last_bv)
-            print('-'*100)
+            
+            logger.success("{}的b站推送处理完毕,over...new_bv:{}, last_bv:{}",user["name"], new_bv, last_bv)
+            # print('-'*100)
+            # print('over')
+            # print("new_bv: ", new_bv)
+            # print("last_bv: ", last_bv)
+            # print('-'*100)
             
             await asyncio.sleep(60)
 
@@ -132,7 +146,8 @@ def format_card(card: dict)->dict:
         #if 'first_frame' in detail: 
         #    d['img']['first_frame'] = detail['first_frame']
     except Exception as e:
-        print(f'格式有误.....:{e}')
+        logger.error("b站爬取内容的格式有误,{}",e)
+        # print(f'格式有误.....:{e}')
         return 'error'
 
     return d
