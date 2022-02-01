@@ -39,57 +39,60 @@ async def register_user(app: Ariadne, user:dict, start:int):
     last_bv = ''
     async with aiohttp.ClientSession() as session:
         while keep_working:
-            logger.info(f"这里是 {user['name']} 的b站推送功能----")
-            data = await fetch(session, user['headers'], user['url'])
-            data_obj = json.loads(data)
             try:
-                assert len(data_obj["data"]["cards"]) == 20
-            except Exception:
-                #TODO:下一步这里加上app.sendMessgae到MAH
-                logger.info("长度不对，出错了,len={}",len(data_obj["data"]["cards"]))
-                #print("长度不对，出错了,len=",len(data_obj["data"]["cards"]))   
+                logger.info(f"这里是 {user['name']} 的b站推送功能----")
+                data = await fetch(session, user['headers'], user['url'])
+                data_obj = json.loads(data)
+                try:
+                    assert len(data_obj["data"]["cards"]) == 20
+                except Exception:
+                    #TODO:下一步这里加上app.sendMessgae到MAH
+                    #NOTE: 虽然上面那个Try到了，但是万一是由于没有["cards"]字段造成的，则下面调用data_obj["data"]["cards"]
+                    #NOTE: 还是会报错的呀，而且catch了之后就直接return掉就好了（当然，在此处是continue）
+                    logger.info("长度不对，出错了,data_obj={}",data_obj)
+                    # print("长度不对，出错了,len=",len(data_obj["data"]["cards"]))   
+                    
+                data = format_data(data_obj)
                 
-            data = format_data(data_obj)
-            
-            logger.info(f"{user['name']}的新信息如下")
-            #print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, {user["name"]}的新信息如下：')
+                logger.info(f"{user['name']}的新信息如下")
+                #print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}, {user["name"]}的新信息如下：')
 
-            #new_bv的更新方式改变成直接取bv号
-            # new_bv = data[0]['short_link']
-            # new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
-            new_bv = data[0]['bv']
-            await exception_handle1(app, data)
-            logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link'])
-            #print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
-            #print("last_bv: ", last_bv)
+                #new_bv的更新方式改变成直接取bv号
+                # new_bv = data[0]['short_link']
+                # new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
+                new_bv = data[0]['bv']
+                await exception_handle1(app, data)
+                logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link'])
+                #print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
+                #print("last_bv: ", last_bv)
 
-            #理论上init bv 这一部分应该放到while循环外面，因为这部分只在第一次的时候用的到。
+                #理论上init bv 这一部分应该放到while循环外面，因为这部分只在第一次的时候用的到。
 
-            # init_bv = data[start]['short_link']
-            # init_bv = init_bv[init_bv.find('/BV'):].replace('/','')
-            init_bv = data[start]['bv']
-            if last_bv == '':
-                last_bv = init_bv
-            # 增加对异常情况的过滤
-            if bv_error(last_bv, data):
-                last_bv = '' 
-            for item in data:
-                if last_bv in item['short_link']:
-                    last_bv = new_bv
-                    break
-                logger.info("得到新推送:{}, link:{}",item['title'], item['short_link'])
-                #print(item['title'], item['short_link'])
+                # init_bv = data[start]['short_link']
+                # init_bv = init_bv[init_bv.find('/BV'):].replace('/','')
+                init_bv = data[start]['bv']
+                if last_bv == '':
+                    last_bv = init_bv
+                # 增加对异常情况的过滤
+                if bv_error(last_bv, data):
+                    last_bv = '' 
+                for item in data:
+                    if last_bv in item['short_link']:
+                        last_bv = new_bv
+                        break
+                    logger.info("得到新推送:{}, link:{}",item['title'], item['short_link'])
+                    #print(item['title'], item['short_link'])
+                    
+                    await app.sendGroupMessage(user["sendgroup"], make_Chain(item))                
                 
-                await app.sendGroupMessage(user["sendgroup"], make_Chain(item))                
-            
-            logger.success("{}的b站推送处理完毕,over...new_bv:{}, last_bv:{}",user["name"], new_bv, last_bv)
-            # print('-'*100)
-            # print('over')
-            # print("new_bv: ", new_bv)
-            # print("last_bv: ", last_bv)
-            # print('-'*100)
-            
+                logger.success("{}的b站推送处理完毕,over...new_bv:{}, last_bv:{}",user["name"], new_bv, last_bv)
+                
+            except Exception as e:
+                logger.error(f"本次{user['name']}的b站推送失败了，原因是{e}，data的内容是{data}")
             await asyncio.sleep(60)
+
+
+
 
 async def exception_handle1(app: Ariadne, data:dict):
     for item in data:
