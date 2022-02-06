@@ -135,7 +135,7 @@ def format_data(data_obj: dict)->list:
     for card in cards:
         ret = format_card(card)
         if ret != 'error': ret_list.append(ret)
-    return ret_list
+    return ret_list # 格式化后，此时len不一定是20了
     
     
     
@@ -156,7 +156,7 @@ def format_card(card: dict)->dict:
         #if 'first_frame' in detail: 
         #    d['img']['first_frame'] = detail['first_frame']
     except Exception as e:
-        logger.error("b站爬取内容的格式有误,{}",e)
+        logger.error("b站爬取内容的格式有误,{}\ncard:{}",e,card)
         # print(f'格式有误.....:{e}')
         return 'error'
 
