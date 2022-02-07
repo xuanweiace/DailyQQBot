@@ -37,6 +37,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
     #print("asyncio.current_task:", asyncio.current_task)
     global keep_working
     last_bv = ''
+    record_list = [] # 暂时还是以last_bv这个下标来判断推送情况。但是为了防止出现，某次爬取到的信息是旧信息，因此加这个record_list记录已经推送过的BV号来兜底。
     async with aiohttp.ClientSession() as session:
         while keep_working:
             try:
@@ -50,7 +51,8 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     #NOTE: 虽然上面那个Try到了，但是万一是由于没有["cards"]字段造成的，则下面调用data_obj["data"]["cards"]
                     #NOTE: 还是会报错的呀，而且catch了之后就直接return掉就好了（当然，在此处是continue）
                     logger.info("长度不对，出错了,data_obj={}",data_obj)
-                    # print("长度不对，出错了,len=",len(data_obj["data"]["cards"]))   
+                    #NOTE:刚开始这里忘加continue了，出现bug：爬取的时候只爬取到了一条信息，即len=1，如果不更新，则newbv跑到lastbv后面去了（即newbv是旧信息）因此需要认为这次爬取有误，不更新任何变量
+                    continue
                     
                 data = format_data(data_obj)
                 
@@ -62,9 +64,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
                 # new_bv = new_bv[new_bv.find('/BV'):].replace('/','')
                 new_bv = data[0]['bv']
                 await exception_handle1(app, data)
-                logger.info("new_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link'])
-                #print("new_bv: ", new_bv, "实际: ", data[0]['short_link'])
-                #print("last_bv: ", last_bv)
+                logger.info("last_bv:{}, new_bv:{}, 实际: {}",last_bv,new_bv, data[0]['short_link'])
 
                 #理论上init bv 这一部分应该放到while循环外面，因为这部分只在第一次的时候用的到。
 
@@ -75,7 +75,11 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     last_bv = init_bv
                 # 增加对异常情况的过滤
                 if bv_error(last_bv, data):
-                    last_bv = '' 
+                    app.sendGroupMessage(user["sendgroup"], f"https://b23.tv/{last_bv}找不到，已被删除！！")   
+                    last_bv = data[0]['bv'] # 如果出现被删除的情况，则此次不推送
+                    continue
+                # if newbv_olderthan_lastbv(last_bv, new_bv, data):
+                #     raise ValueError("newbv_olderthan_lastbv") 
                 for item in data:
                     if last_bv in item['short_link']:
                         last_bv = new_bv
@@ -83,12 +87,18 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     logger.info("得到新推送:{}, link:{}",item['title'], item['short_link'])
                     #print(item['title'], item['short_link'])
                     
-                    await app.sendGroupMessage(user["sendgroup"], make_Chain(item))                
+                    #NOTE: 加一个兜底逻辑.
+                    if item['bv'] in record_list:
+                        continue
+
+                    await app.sendGroupMessage(user["sendgroup"], make_Chain(item))     
+                    
+                    record_list.add(item['bv'])           
                 
                 logger.success("{}的b站推送处理完毕,over...new_bv:{}, last_bv:{}",user["name"], new_bv, last_bv)
                 
             except Exception as e:
-                logger.error(f"本次{user['name']}的b站推送失败了，原因是{e}，data的内容是{data}")
+                logger.error(f"本次{user['name']}的b站推送失败了，原因是{repr(e)}，data的内容是{data}")
             await asyncio.sleep(60)
 
 
@@ -119,6 +129,19 @@ def bv_error(bv:str, data:dict):
     # 说明待检测的bv不在爬取的数据中，会导致后面推送的时候不break，所有爬取的数据都推送过去了
     return True
 
+# def newbv_olderthan_lastbv(last_bv, new_bv, data):
+#     """
+#     检测是否出现：new_bv排在last_bv后面，的情况。
+#                 即new_bv是之前推送过的内容了（因为之前已经推送到的是last_bv）
+#     检测方法：
+#         顺序遍历data，如果先出现了new_bv，则没问题，如果先出现了
+#     """
+#     for item in data:
+#         if new_bv == item['bv']:
+#             return False
+#         if last_bv == item['bv']:
+#             return True
+
 def make_Chain(d: dict)->MessageChain:
     c1 = MessageChain.create(
         f"B站推送：\n标题：{d['title']}, \nup主：{d['uname']}, \n分类：{d['tname']}\nu_info：{d['u_info']}\n链接：{d['short_link']}"
@@ -136,7 +159,6 @@ def format_data(data_obj: dict)->list:
         ret = format_card(card)
         if ret != 'error': ret_list.append(ret)
     return ret_list # 格式化后，此时len不一定是20了
-    
     
     
 def format_card(card: dict)->dict:
