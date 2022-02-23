@@ -12,7 +12,7 @@ from graia.ariadne.event.mirai import NudgeEvent
 from graia.ariadne.adapter import DefaultAdapter
 #import requests
 import debug
-from features import soutu, tianqi, bilibili
+from features import soutu, tianqi, bilibili, goldprice
 punc = '~`!#$%^&*()_+-=|\';":/.,?><~·！@#￥%……&*（）--+-="：’；、。，？》《{}'
 loop = asyncio.new_event_loop()
 
@@ -62,11 +62,18 @@ async def friend_message_listener(message: MessageChain, app: Ariadne, friend: F
             return
         await bilibili.main(app, name, start)
         return 
-    if "关闭推送" in message.asDisplay():
+    if "关闭b站推送" in message.asDisplay():
         bilibili.keep_working = False
         return
-
-
+    if "金价推送" in message.asDisplay():
+        await goldprice.main(app, friend)
+        return
+    if "实时金价" in message.asDisplay():
+        await goldprice.ask(app, friend)
+        return
+    if "关闭金价推送" in message.asDisplay():
+        goldprice.keep_working = False
+        return
     print(":::,",message.asDisplay())
     #receive_data = requests.get("http://api.qingyunke.com/api.php", {'key': 'free', 'appid':0, 'msg': message.asDisplay()})#这里使用了网站提供的api得到机器人说的话，s是你对机器人说的话
     #receive_data.encoding = 'utf8'#设置编码，否则可能会乱码

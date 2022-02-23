@@ -25,6 +25,8 @@ manage_group = [zxzzQun, WuYongQun, zxzyxyQun]
 
 
 async def main(app: Ariadne, name:str, start:int):
+    global keep_working
+    keep_working = True
     if name == 'zxz':
         await register_user(app, zxz, start)
     if name == 'yxy':
@@ -93,7 +95,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
 
                     await app.sendGroupMessage(user["sendgroup"], make_Chain(item))     
                     
-                    record_list.add(item['bv'])           
+                    record_list.append(item['bv'])           
                 
                 logger.success("{}的b站推送处理完毕,over...new_bv:{}, last_bv:{}",user["name"], new_bv, last_bv)
                 
