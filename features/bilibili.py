@@ -8,11 +8,10 @@ from loguru import logger
 
 from graia.broadcast import Broadcast
 
-from graia.ariadne.context import adapter_ctx
 from graia.ariadne.app import Ariadne
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Plain, Source, At, Image
-from graia.ariadne.model import Friend, Group, Member, MiraiSession
+from graia.ariadne.model import Friend, Group, Member
 from graia.ariadne.event.mirai import NudgeEvent
 
 from .configs import zxz, yxy
@@ -54,6 +53,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     #NOTE: 还是会报错的呀，而且catch了之后就直接return掉就好了（当然，在此处是continue）
                     logger.info("长度不对，出错了,data_obj={}",data_obj)
                     #NOTE:刚开始这里忘加continue了，出现bug：爬取的时候只爬取到了一条信息，即len=1，如果不更新，则newbv跑到lastbv后面去了（即newbv是旧信息）因此需要认为这次爬取有误，不更新任何变量
+                    await asyncio.sleep(60)
                     continue
                     
                 data = format_data(data_obj)
@@ -77,7 +77,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     last_bv = init_bv
                 # 增加对异常情况的过滤
                 if bv_error(last_bv, data):
-                    app.sendGroupMessage(user["sendgroup"], f"https://b23.tv/{last_bv}找不到，已被删除！！")   
+                    app.send_group_message(user["sendgroup"], f"https://b23.tv/{last_bv}找不到，已被删除！！")   
                     last_bv = data[0]['bv'] # 如果出现被删除的情况，则此次不推送
                     continue
                 # if newbv_olderthan_lastbv(last_bv, new_bv, data):
@@ -93,7 +93,7 @@ async def register_user(app: Ariadne, user:dict, start:int):
                     if item['bv'] in record_list:
                         continue
 
-                    await app.sendGroupMessage(user["sendgroup"], make_Chain(item))     
+                    await app.send_group_message(user["sendgroup"], make_Chain(item))     
                     
                     record_list.append(item['bv'])           
                 
@@ -112,7 +112,7 @@ async def exception_handle1(app: Ariadne, data:dict):
         bv = bv[bv.find('/BV'):].replace('/','')
         if bv != item['bv']:
 
-            await app.sendFriendMessage(botQQ, MessageChain.create("B站推送bv号和shortlink有误，具体信息如下：") + MessageChain.create(str(item)))
+            await app.sendFriendMessage(botQQ, MessageChain("B站推送bv号和shortlink有误，具体信息如下：") + MessageChain(str(item)))
 
 def bv_error(bv:str, data:dict):
     """
@@ -145,11 +145,11 @@ def bv_error(bv:str, data:dict):
 #             return True
 
 def make_Chain(d: dict)->MessageChain:
-    c1 = MessageChain.create(
+    c1 = MessageChain(
         f"B站推送：\n标题：{d['title']}, \nup主：{d['uname']}, \n分类：{d['tname']}\nu_info：{d['u_info']}\n链接：{d['short_link']}"
     )
     if 'video_fm' in d['img']:
-        c1 = c1 + MessageChain.create(
+        c1 = c1 + MessageChain(
             Image(url = d['img']['video_fm'])
         )
     return c1
@@ -196,5 +196,6 @@ async def fetch(session, headers, url):
 
 
            
+
 
 #asyncio.run(main())
